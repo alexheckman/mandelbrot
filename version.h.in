@@ -1,0 +1,2 @@
+#define _VERSION_MARJOR_ @mandelbrot_VERSION_MAJOR@
+#define _VERSION_MINOR_ @mandelbrot_VERSION_MINOR@
