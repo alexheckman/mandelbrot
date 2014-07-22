@@ -6,4 +6,6 @@ add_executable(mandelbrot
     util.cpp)
 
 target_link_libraries(mandelbrot 
-    libmandelbrot)
+    libmandelbrot
+    ${Boost_LIBRARIES} 
+    ${CMAKE_THREAD_LIBS_INIT})
