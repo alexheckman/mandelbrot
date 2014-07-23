@@ -10,6 +10,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <thread>
 #include <boost/format.hpp>
 
 namespace mandelbrot
@@ -47,7 +48,7 @@ Mandelbrot::Mandelbrot(unsigned int max_iterations)
 : Mandelbrot(800, 600, max_iterations)
 {}
 
-RGB
+void
 Mandelbrot::calc_pixel(unsigned x, unsigned y)
 {
     if (x > width_ || y > height_)
@@ -85,13 +86,46 @@ Mandelbrot::calc_point(CPoint&& c)
     return (it < max_iterations_) ? PointResult({static_cast<int>(it), z}) : PointResult({-1, z});
 }
 
-int
-Mandelbrot::compute()
+void Mandelbrot::Action::operator()()
 {
+    /*
+    std::cout << "#\t x.first: " << std::to_string(x.first) << std::endl;
+    std::cout << "#\t x.second: " << std::to_string(x.second) << std::endl;
+    std::cout << "#\t y.first: " << std::to_string(y.first) << std::endl;
+    std::cout << "#\t y.second: " << std::to_string(y.second) << std::endl;
+*/
     //for each pixel compute a color
-    for (unsigned x = 0; x < width_; x++) {
-        for (unsigned y = 0; y < height_; y++) {
-            calc_pixel(x, y);
+    for (unsigned i = x.first; i < x.second; i++) {
+        for (unsigned j = y.first; j < y.second; j++) {
+            mandelbrot.calc_pixel(i, j);
+        }
+    }
+}
+
+void
+Mandelbrot::compute(unsigned threads)
+{
+    if (threads <= 1) {
+        //for each pixel compute a color
+        for (unsigned x = 0; x < width_; x++) {
+            for (unsigned y = 0; y < height_; y++) {
+                calc_pixel(x, y);
+            }
+        }
+    } else {
+        std::vector<std::thread> t;
+        //will do splitting across image height in equal portions
+        unsigned step = static_cast<unsigned>(height_/threads), u = 0, l = 0;;
+
+        for(unsigned i = 0; i < threads; i++) {
+            l += step;
+            if (i == threads - 1) l = height_;
+            t.emplace_back(Action(*this, std::make_pair(0, width_), std::make_pair(u, l)));
+            u = l;
+        }
+
+        for( auto& thread : t) {
+            thread.join();
         }
     }
 }
@@ -137,10 +171,10 @@ Mandelbrot::writeCSV(std::string suffix)
         throw std::runtime_error("Could not open file for writing");
     }
     std::ostringstream oss;
-    for (int i = 0; i < height_; i++) {
-        for (int j = 0; j < width_; j++)
+    for (unsigned i = 0; i < height_; i++) {
+        for (unsigned j = 0; j < width_; j++)
         {
-            oss << output_[j][i] << ((j < static_cast<int>((width_ - 1))) ? "," : "");
+            oss << output_[j][i] << ((j < (width_ - 1)) ? "," : "");
         }
         oss << std::endl;
     }

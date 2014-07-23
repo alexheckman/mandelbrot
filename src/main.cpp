@@ -9,8 +9,8 @@ using namespace mandelbrot;
 int run(int argc, char *argv[]) {
     namespace po = boost::program_options;
 
-    unsigned w, h, max_iterations;
-    w = h = max_iterations = 0;
+    unsigned w, h, max_iterations, threads;
+    w = h = max_iterations = threads = 0;
     bool write_csv = false;
     std::vector<long double> x, y;
     po::options_description desc("Mandelbrot help");
@@ -21,6 +21,7 @@ int run(int argc, char *argv[]) {
         ("max-iterations,i", po::value<unsigned>(&max_iterations)->default_value(256), "maximum number of iterations to test a point")
         ("x,x", po::value<std::vector<long double>>(&x)->multitoken(), "range pair along x-axis")
         ("y,y", po::value<std::vector<long double>>(&y)->multitoken(), "range pair along y-axis")
+        ("threads,j", po::value<unsigned>(&threads)->default_value(1), "number of concurrent computations")
         ("write-csv", po::value<bool>(&write_csv)->default_value(true), "write pixel matrix of shape [w,h,rgb] as CSV file. Enabled by default.");
 
     po::variables_map vm;
@@ -37,7 +38,7 @@ int run(int argc, char *argv[]) {
 
 
     mandelbrot::Mandelbrot mandelbrot(x, y, w, h, max_iterations);
-    mandelbrot.compute();
+    mandelbrot.compute(threads);
 
     if (write_csv) {
         mandelbrot.writeCSV();

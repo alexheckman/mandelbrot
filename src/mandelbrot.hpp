@@ -29,11 +29,11 @@ public:
     
     struct Action
     {
-        Action(Mandelbrot* data) : mandelbrot(data) {}
+        Action(Mandelbrot& m, std::pair<unsigned, unsigned> a, std::pair<unsigned, unsigned> b) : mandelbrot(m), x(a), y(b) {}
         void operator()();
 
-        Range x, y;
-        Mandelbrot *mandelbrot;
+        Mandelbrot& mandelbrot;
+        std::pair<unsigned, unsigned> x, y;
     };
 
     static Bounds bounds;
@@ -44,12 +44,12 @@ public:
     Mandelbrot(unsigned width, unsigned height, unsigned int  max_iterations = 255);
     Mandelbrot(unsigned int max_iterations = 255);
 
-    int compute();
+    void compute(unsigned threads = 1);
     void writeCSV(std::string suffix = "");
 
 private:
     PointResult calc_point(CPoint&& c);
-    RGB calc_pixel(unsigned x, unsigned y);
+    void calc_pixel(unsigned x, unsigned y);
     Range validate_range(const std::vector<long double>& v, Axis ax);
 
     Range x_, y_; //x-domain, y-codomain of mandelbrot set

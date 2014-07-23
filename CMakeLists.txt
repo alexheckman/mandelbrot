@@ -1,12 +1,17 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8)
 project(mandelbrot)
 set (mandelbrot_VERSION_MAJOR 0)
 set (mandelbrot_VERSION_MINOR 1)
-#enable cpp11
-list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 
-find_package(Boost 1.49 COMPONENTS program_options REQUIRED)
-find_package(Threads REQUIRED)
+#enable cpp11
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall ${CMAKE_CXX_FLAGS}")
+
+#workaround for bug on 13.10
+#https://bugs.launchpad.net/ubuntu/+source/gcc-defaults/+bug/1228201
+if (UNIX)
+    set(CMAKE_CXX_FLAGS "-pthread ${CMAKE_CXX_FLAGS}")
+endif()
+
 
 configure_file(
 "${mandelbrot_SOURCE_DIR}/version.h.in"
