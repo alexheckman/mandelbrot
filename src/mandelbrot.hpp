@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util.hpp"
+#include "datasplit.hpp"
 
 #include <utility>
 #include <tuple>
@@ -20,31 +21,33 @@ public:
         Range x, y;
         Bounds() : x(std::make_pair(-2.25, 1)), y(std::make_pair(-1, 1)) {}
     };
-    
+
     struct PointResult
     {
         int iterations;
         CPoint zn;
     };
-    
+
     struct Action
     {
-        Action(Mandelbrot& m, std::pair<unsigned, unsigned> a, std::pair<unsigned, unsigned> b) : mandelbrot(m), x(a), y(b) {}
+        Action(Mandelbrot& m) : mandelbrot(m) {}
         void operator()();
 
         Mandelbrot& mandelbrot;
-        std::pair<unsigned, unsigned> x, y;
     };
 
     static Bounds bounds;
 
-    Mandelbrot(Range x, Range y, unsigned width, unsigned height, unsigned int max_iterations = 255);
+    Mandelbrot(Range x, Range y, unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Simple);
     Mandelbrot(const std::vector<long double> &vx, const std::vector<long double> &vy, 
-                unsigned width, unsigned height, unsigned int max_iterations = 255);
-    Mandelbrot(unsigned width, unsigned height, unsigned int  max_iterations = 255);
-    Mandelbrot(unsigned int max_iterations = 255);
+                unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Simple);
+    Mandelbrot(unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Simple);
+    Mandelbrot(split::DataSplitType type = split::DataSplitType::Simple);
 
-    void compute(unsigned threads = 1);
+    void set_iterations(unsigned i) { max_iterations_ = i; }
+    void set_parallel(unsigned p) { parallel_ = p; }
+
+    void compute();
     void writeCSV(std::string suffix = "");
 
 private:
@@ -55,11 +58,13 @@ private:
     Range x_, y_; //x-domain, y-codomain of mandelbrot set
     const unsigned width_, height_; //screen measurements
     const long double dx_, dy_; //increment ratios
-    const unsigned max_iterations_;
     const long double conv_limit_;
-    //TODO color palette ?
+    unsigned max_iterations_, parallel_;
+
+    std::unique_ptr<split::IDataSplit> data_pool_;
     std::vector< std::vector<RGB> > output_;
 
+    //TODO color palette ?
     const std::string csv_filename_ = "mandelbrot_pixel_matrix.csv";
     const RGB black = { 0, 0, 0 };
 };

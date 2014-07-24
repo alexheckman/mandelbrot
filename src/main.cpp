@@ -22,6 +22,7 @@ int run(int argc, char *argv[]) {
         ("x,x", po::value<std::vector<long double>>(&x)->multitoken(), "range pair along x-axis")
         ("y,y", po::value<std::vector<long double>>(&y)->multitoken(), "range pair along y-axis")
         ("threads,j", po::value<unsigned>(&threads)->default_value(1), "number of concurrent computations")
+        ("split-model,m", po::value<std::string>()->default_value("simple"), "split model used to created thread jobs.")
         ("write-csv", po::value<bool>(&write_csv)->default_value(true), "write pixel matrix of shape [w,h,rgb] as CSV file. Enabled by default.");
 
     po::variables_map vm;
@@ -36,9 +37,22 @@ int run(int argc, char *argv[]) {
     if (w > 1920 && h > 1080)
         throw std::out_of_range("Maximum resolution is 1920x1080.");
 
+    mandelbrot::split::DataSplitType split_type;
+    if (vm.count("split-model")) {
+        const std::string& model = vm["split-model"].as<std::string>();
+        if (model == "simple") {
+            split_type = split::DataSplitType::Simple;
+        } else if (model == "puzzle") {
+            split_type = split::DataSplitType::Puzzle;
+        } else {
+            throw std::invalid_argument("'" + model + "' not a valid option value.");
+        }
+    }
 
-    mandelbrot::Mandelbrot mandelbrot(x, y, w, h, max_iterations);
-    mandelbrot.compute(threads);
+    mandelbrot::Mandelbrot mandelbrot(x, y, w, h, split_type);
+    mandelbrot.set_iterations(max_iterations);
+    mandelbrot.set_parallel(threads);
+    mandelbrot.compute();
 
     if (write_csv) {
         mandelbrot.writeCSV();

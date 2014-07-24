@@ -1,5 +1,6 @@
 #include "mandelbrot.hpp"
 #include "util.hpp"
+#include "datasplit.hpp"
 
 #include <complex>
 #include <utility>
@@ -17,35 +18,37 @@ namespace mandelbrot
 {
 
 Mandelbrot::Bounds Mandelbrot::bounds;
-    
-Mandelbrot::Mandelbrot(Range x, Range y, unsigned int width, unsigned int height, unsigned int max_iterations)
-: x_(x), 
-  y_(y), 
-  width_(width), 
+
+Mandelbrot::Mandelbrot(Range x, Range y, unsigned int width, unsigned int height, split::DataSplitType type)
+: x_(x),
+  y_(y),
+  width_(width),
   height_(height),
   dx_((x_.second - x_.first) / static_cast<long double>(width)),
   dy_((y_.second - y_.first) / static_cast<long double>(height)),
-  max_iterations_(max_iterations),
   conv_limit_(2),
+  max_iterations_(256),
+  parallel_(1),
+  data_pool_(split::DataSplitFactory::create(type, width_, height_)),
   output_(width_)
-{ 
+{
     //pre-allocate memory for each row
     for (unsigned i = 0; i < width_; i++) {
         output_[i].reserve(height_);
     }
 }
 
-Mandelbrot::Mandelbrot(const std::vector<long double>& vx, const std::vector<long double>& vy, unsigned int width, unsigned int height, unsigned int max_iterations)
-: Mandelbrot(validate_range(vx, X), validate_range(vy, Y), width, height, max_iterations)
+Mandelbrot::Mandelbrot(const std::vector<long double>& vx, const std::vector<long double>& vy, unsigned int width, unsigned int height, split::DataSplitType type)
+: Mandelbrot(validate_range(vx, X), validate_range(vy, Y), width, height, type)
 {}
 
 
-Mandelbrot::Mandelbrot(unsigned int width, unsigned int height, unsigned int max_iterations)
-: Mandelbrot(bounds.x, bounds.y, width, height, max_iterations)
+Mandelbrot::Mandelbrot(unsigned int width, unsigned int height, split::DataSplitType type)
+: Mandelbrot(bounds.x, bounds.y, width, height, type)
 {}
 
-Mandelbrot::Mandelbrot(unsigned int max_iterations)
-: Mandelbrot(800, 600, max_iterations)
+Mandelbrot::Mandelbrot(split::DataSplitType type)
+: Mandelbrot(800, 600, type)
 {}
 
 void
@@ -88,24 +91,30 @@ Mandelbrot::calc_point(CPoint&& c)
 
 void Mandelbrot::Action::operator()()
 {
-    /*
-    std::cout << "#\t x.first: " << std::to_string(x.first) << std::endl;
-    std::cout << "#\t x.second: " << std::to_string(x.second) << std::endl;
-    std::cout << "#\t y.first: " << std::to_string(y.first) << std::endl;
-    std::cout << "#\t y.second: " << std::to_string(y.second) << std::endl;
-*/
-    //for each pixel compute a color
-    for (unsigned i = x.first; i < x.second; i++) {
-        for (unsigned j = y.first; j < y.second; j++) {
-            mandelbrot.calc_pixel(i, j);
+    for(;;) {
+        static std::mutex  mtx; //one time only init
+        split::DataSplit::type limit;
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            limit = mandelbrot.data_pool_->next();
+            if(!limit.get())
+                return;
+        }
+
+        //for each pixel compute a color
+        for (unsigned i = limit->left; i < limit->right; i++) { //left -> right
+            for (unsigned j = limit->top; j < limit->bottom; j++) { //top -> bottom
+                mandelbrot.calc_pixel(i, j);
+            }
         }
     }
 }
 
 void
-Mandelbrot::compute(unsigned threads)
+Mandelbrot::compute()
 {
-    if (threads <= 1) {
+    data_pool_->reset();
+    if (parallel_ <= 1) {
         //for each pixel compute a color
         for (unsigned x = 0; x < width_; x++) {
             for (unsigned y = 0; y < height_; y++) {
@@ -113,20 +122,12 @@ Mandelbrot::compute(unsigned threads)
             }
         }
     } else {
-        std::vector<std::thread> t;
-        //will do splitting across image height in equal portions
-        unsigned step = static_cast<unsigned>(height_/threads), u = 0, l = 0;;
+        std::vector<std::thread> workers;
+        for(unsigned i = 0; i < parallel_; i++)
+            workers.emplace_back(Action(*this));
 
-        for(unsigned i = 0; i < threads; i++) {
-            l += step;
-            if (i == threads - 1) l = height_;
-            t.emplace_back(Action(*this, std::make_pair(0, width_), std::make_pair(u, l)));
-            u = l;
-        }
-
-        for( auto& thread : t) {
+        for( auto& thread : workers)
             thread.join();
-        }
     }
 }
 
@@ -145,7 +146,7 @@ Mandelbrot::validate_range(const std::vector<long double>& v, Axis ax)
             default_range.reset(new Mandelbrot::Range(Mandelbrot::bounds.y));
             break;
     }
-    
+
     if (v.size() > 0) {
         if (v.size() != 2)
             throw std::runtime_error(msg + " represent a range, therefore only 2 values are allowed.");
@@ -154,12 +155,12 @@ Mandelbrot::validate_range(const std::vector<long double>& v, Axis ax)
     } else {
         return *default_range;
     }
-    
+
     //check if it's inside bounds
     if (v[0] < default_range->first && v[1] > default_range->second)
         throw std::out_of_range((boost::format("One of %1% values is out of range. Must be between [%2%, %3%]") 
                                     % msg % default_range->first % default_range->second).str());
-        
+
     return Mandelbrot::Range(v[0], v[1]);
 }
 
