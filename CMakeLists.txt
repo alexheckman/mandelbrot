@@ -12,12 +12,12 @@ if (UNIX)
     set(CMAKE_CXX_FLAGS "-pthread ${CMAKE_CXX_FLAGS}")
 endif()
 
-
 configure_file(
 "${mandelbrot_SOURCE_DIR}/version.h.in"
 "${mandelbrot_BINARY_DIR}/version.h"
 )
 
 include_directories("${mandelbrot_BINARY_DIR}")
+include_directories("${mandelbrot_SOURCE_DIR}/src")
 add_subdirectory(src)
 

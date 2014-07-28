@@ -1,4 +1,4 @@
-#include "mandelbrot.hpp"
+#include "backend/mandelbrot.hpp"
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
 #include <vector>
