@@ -17,6 +17,7 @@ public:
     enum Axis { X, Y };
     typedef std::pair<long double, long double> Range;
     typedef std::complex<long double> CPoint;
+
     struct Bounds {
         Range x, y;
         Bounds() : x(std::make_pair(-2.25, 1)), y(std::make_pair(-1, 1)) {}
@@ -38,12 +39,12 @@ public:
 
     static Bounds bounds;
 
-    Mandelbrot(Range x, Range y, unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Simple);
-    Mandelbrot(const std::vector<long double> &vx, const std::vector<long double> &vy, 
-                unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Simple);
-    Mandelbrot(unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Simple);
-    Mandelbrot(split::DataSplitType type = split::DataSplitType::Simple);
+    Mandelbrot(Range x, Range y, unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Puzzle);
+    Mandelbrot(unsigned width, unsigned height, split::DataSplitType type = split::DataSplitType::Puzzle);
+    Mandelbrot(split::DataSplitType type = split::DataSplitType::Puzzle);
 
+    void set_area(Area area);
+    void set_area(Range x, Range y);
     void set_iterations(unsigned i) { max_iterations_ = i; }
     void set_parallel(unsigned p) { parallel_ = p; }
 
@@ -53,11 +54,11 @@ public:
 private:
     PointResult calc_point(CPoint&& c);
     void calc_pixel(unsigned x, unsigned y);
-    Range validate_range(const std::vector<long double>& v, Axis ax);
+    Range validate_range(Range r, Axis ax);
 
     Range x_, y_; //x-domain, y-codomain of mandelbrot set
     const unsigned width_, height_; //screen measurements
-    const long double dx_, dy_; //increment ratios
+    long double dx_, dy_; //increment ratios
     const long double conv_limit_;
     unsigned max_iterations_, parallel_;
 

@@ -10,6 +10,11 @@ using namespace std;
 namespace mandelbrot
 {
 
+struct Area
+{
+    unsigned left, right, top, bottom;
+};
+
 struct RGB
 {
     RGB() {

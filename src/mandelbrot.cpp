@@ -20,12 +20,12 @@ namespace mandelbrot
 Mandelbrot::Bounds Mandelbrot::bounds;
 
 Mandelbrot::Mandelbrot(Range x, Range y, unsigned int width, unsigned int height, split::DataSplitType type)
-: x_(x),
-  y_(y),
+: x_(validate_range(x, X)),
+  y_(validate_range(y, Y)),
   width_(width),
   height_(height),
-  dx_((x_.second - x_.first) / static_cast<long double>(width)),
-  dy_((y_.second - y_.first) / static_cast<long double>(height)),
+  dx_((x_.second - x_.first) / static_cast<long double>(width_)),
+  dy_((y_.second - y_.first) / static_cast<long double>(height_)),
   conv_limit_(2),
   max_iterations_(256),
   parallel_(1),
@@ -38,10 +38,6 @@ Mandelbrot::Mandelbrot(Range x, Range y, unsigned int width, unsigned int height
     }
 }
 
-Mandelbrot::Mandelbrot(const std::vector<long double>& vx, const std::vector<long double>& vy, unsigned int width, unsigned int height, split::DataSplitType type)
-: Mandelbrot(validate_range(vx, X), validate_range(vy, Y), width, height, type)
-{}
-
 
 Mandelbrot::Mandelbrot(unsigned int width, unsigned int height, split::DataSplitType type)
 : Mandelbrot(bounds.x, bounds.y, width, height, type)
@@ -50,6 +46,21 @@ Mandelbrot::Mandelbrot(unsigned int width, unsigned int height, split::DataSplit
 Mandelbrot::Mandelbrot(split::DataSplitType type)
 : Mandelbrot(800, 600, type)
 {}
+
+void Mandelbrot::set_area(Mandelbrot::Range x, Mandelbrot::Range y)
+{
+    x_ = validate_range(x, X);
+    y_ = validate_range(y, Y);
+}
+
+void Mandelbrot::set_area(Area area)
+{
+    if (area.left > area.right || area.top > area.bottom)
+        throw std::out_of_range("Not a valid area.");
+
+    set_area({x_.first + dx_ * area.left, x_.second + dx_ * area.right},
+                {y_.first + dy_ * area.top, y_.second = dy_ * area.bottom});
+}
 
 void
 Mandelbrot::calc_pixel(unsigned x, unsigned y)
@@ -113,7 +124,10 @@ void Mandelbrot::Action::operator()()
 void
 Mandelbrot::compute()
 {
+    dx_ = (x_.second - x_.first) / static_cast<long double>(width_);
+    dy_ = (y_.second - y_.first) / static_cast<long double>(height_);
     data_pool_->reset();
+
     if (parallel_ <= 1) {
         //for each pixel compute a color
         for (unsigned x = 0; x < width_; x++) {
@@ -132,10 +146,10 @@ Mandelbrot::compute()
 }
 
 Mandelbrot::Range
-Mandelbrot::validate_range(const std::vector<long double>& v, Axis ax)
+Mandelbrot::validate_range(Range r, Axis ax)
 {
     std::string msg = "";
-    std::unique_ptr<Mandelbrot::Range> default_range;
+    std::unique_ptr<Range> default_range;
     switch(ax) {
         case X:
             msg = "'x'";
@@ -147,22 +161,17 @@ Mandelbrot::validate_range(const std::vector<long double>& v, Axis ax)
             break;
     }
 
-    if (v.size() > 0) {
-        if (v.size() != 2)
-            throw std::runtime_error(msg + " represent a range, therefore only 2 values are allowed.");
-        if (v[0] > v[1])
-            throw std::runtime_error("First value must be lower than the second.");
-    } else {
-        return *default_range;
-    }
+    if (r.first > r.second)
+        throw std::runtime_error("First value must be lower than the second.");
 
     //check if it's inside bounds
-    if (v[0] < default_range->first && v[1] > default_range->second)
-        throw std::out_of_range((boost::format("One of %1% values is out of range. Must be between [%2%, %3%]") 
+    if (r.first < default_range->first && r.second > default_range->second)
+        throw std::out_of_range((boost::format("One of %1% values is out of range. Must be between [%2%, %3%]")
                                     % msg % default_range->first % default_range->second).str());
 
-    return Mandelbrot::Range(v[0], v[1]);
+    return r;
 }
+
 
 void
 Mandelbrot::writeCSV(std::string suffix)

@@ -22,7 +22,7 @@ int run(int argc, char *argv[]) {
         ("x,x", po::value<std::vector<long double>>(&x)->multitoken(), "range pair along x-axis")
         ("y,y", po::value<std::vector<long double>>(&y)->multitoken(), "range pair along y-axis")
         ("threads,j", po::value<unsigned>(&threads)->default_value(1), "number of concurrent computations")
-        ("split-model,m", po::value<std::string>()->default_value("simple"), "split model used to created thread jobs.")
+        ("split-model,m", po::value<std::string>()->default_value("puzzle"), "split model used to created thread jobs.")
         ("write-csv", po::value<bool>(&write_csv)->default_value(true), "write pixel matrix of shape [w,h,rgb] as CSV file. Enabled by default.");
 
     po::variables_map vm;
@@ -49,7 +49,21 @@ int run(int argc, char *argv[]) {
         }
     }
 
-    mandelbrot::Mandelbrot mandelbrot(x, y, w, h, split_type);
+    //validate x
+    if ((x.size() > 0 && x.size() != 2) || !x.size()) {
+        x.resize(2);
+        x[0] = mandelbrot::Mandelbrot::bounds.x.first;
+        x[1] = mandelbrot::Mandelbrot::bounds.x.second;
+    }
+
+    //validate y
+    if ((y.size() > 0 && y.size() != 2) || !y.size()) {
+        y.resize(2);
+        y[0] = mandelbrot::Mandelbrot::bounds.y.first;
+        y[1] = mandelbrot::Mandelbrot::bounds.y.second;
+    }
+
+    mandelbrot::Mandelbrot mandelbrot({x[0], x[1]}, {y[0], y[1]}, w, h, split_type);
     mandelbrot.set_iterations(max_iterations);
     mandelbrot.set_parallel(threads);
     mandelbrot.compute();

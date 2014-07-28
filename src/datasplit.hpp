@@ -1,4 +1,7 @@
 #pragma once
+
+#include "util.hpp"
+
 #include <vector>
 #include <mutex>
 #include <memory>
@@ -9,11 +12,6 @@ namespace mandelbrot {
 
 namespace split
 {
-
-struct Limits
-{
-    unsigned left, right, top, bottom;
-};
 
 class DataSplit;
 class SimpleDataSplit;
@@ -41,7 +39,7 @@ public:
 class IDataSplit
 {
 public:
-    typedef std::unique_ptr<Limits> type;
+    typedef std::unique_ptr<Area> type;
 
     virtual type next()=0;
     virtual void reset() =0;
@@ -51,7 +49,7 @@ public:
 class DataSplit : public IDataSplit
 {
 public:
-    std::unique_ptr<Limits> next() final;
+    std::unique_ptr<Area> next() final;
     void reset() final;
 
 protected:
@@ -59,7 +57,7 @@ protected:
 
     virtual void doit() =0;
 
-    std::vector<Limits> limits_;
+    std::vector<Area> limits_;
     decltype(limits_)::iterator position_;
     unsigned width_, height_;
 };
